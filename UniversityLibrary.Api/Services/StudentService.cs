@@ -9,13 +9,14 @@ public class StudentService(DataContext dataContext) : IStudentService
     public async Task<IEnumerable<StudentDto>> GetStudents(CancellationToken token = default) =>
         await dataContext.Students
             .Include(s => s.LibraryCard)
+            .Include(s => s.User)
             .Select(s => new StudentDto
             {
                 Id = s.Id,
-                FirstName = s.FirstName,
-                LastName = s.LastName,
+                FirstName = s.User.Firstname,
+                LastName = s.User.Lastname,
                 StudentNumber = s.StudentNumber,
-                LibraryCardId = s.LibraryCard.Id.ToString()
+                LibraryCardId = s.LibraryCard == null ? null : s.LibraryCard.Id.ToString()
             })
             .ToListAsync(token);
 
@@ -23,6 +24,7 @@ public class StudentService(DataContext dataContext) : IStudentService
     {
         var student = await dataContext.Students
             .Include(s => s.LibraryCard)
+            .Include(s => s.User)
             .FirstOrDefaultAsync(s => s.Id == id, token);
 
         if (student == null)
@@ -31,21 +33,28 @@ public class StudentService(DataContext dataContext) : IStudentService
         return new StudentDto
         {
             Id = student.Id,
-            FirstName = student.FirstName,
-            LastName = student.LastName,
             StudentNumber = student.StudentNumber,
-            LibraryCardId = student.LibraryCard?.Id.ToString()
+            LibraryCardId = student.LibraryCard?.Id.ToString(),
+            FirstName = student.User.Firstname,
+            LastName = student.User.Lastname,
+            UserId = student.UserId
         };
 
     }
 
     public async Task<StudentDto> CreateStudent(CreateStudentDto newStudent, CancellationToken token = default)
     {
+        // Sprawdź czy user istnieje
+        var user = await dataContext.Users
+            .FirstOrDefaultAsync(u => u.Id == newStudent.UserId, token);
+
+        if (user == null)
+            throw new KeyNotFoundException($"User with ID {newStudent.UserId} not found");
+
         var student = new Student
         {
-            FirstName = newStudent.FirstName,
-            LastName = newStudent.LastName,
-            StudentNumber = newStudent.StudentNumber
+            StudentNumber = newStudent.StudentNumber,
+            UserId = newStudent.UserId
         };
 
         dataContext.Students.Add(student);
@@ -54,10 +63,9 @@ public class StudentService(DataContext dataContext) : IStudentService
         return new StudentDto
         {
             Id = student.Id,
-            FirstName = student.FirstName,
-            LastName = student.LastName,
             StudentNumber = student.StudentNumber,
-            LibraryCardId = null // Nowy student nie ma jeszcze karty bibliotecznej
+            LibraryCardId = null, // Nowy student nie ma jeszcze karty bibliotecznej
+            UserId = student.UserId
         };
     }
 
@@ -70,8 +78,6 @@ public class StudentService(DataContext dataContext) : IStudentService
         if (student == null)
             throw new KeyNotFoundException($"Student with ID {updatedStudent.Id} not found");
 
-        student.FirstName = updatedStudent.FirstName;
-        student.LastName = updatedStudent.LastName;
         student.StudentNumber = updatedStudent.StudentNumber;
 
         await dataContext.SaveChangesAsync(token);
@@ -79,10 +85,9 @@ public class StudentService(DataContext dataContext) : IStudentService
         return new StudentDto
         {
             Id = student.Id,
-            FirstName = student.FirstName,
-            LastName = student.LastName,
             StudentNumber = student.StudentNumber,
-            LibraryCardId = student.LibraryCard?.Id.ToString()
+            LibraryCardId = student.LibraryCard?.Id.ToString(),
+            UserId = student.UserId
         };
     }
 

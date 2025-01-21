@@ -6,5 +6,6 @@ public class StudentDto
     public string FirstName { get; set; }
     public string LastName { get; set; }
     public string StudentNumber { get; set; }
-    public string LibraryCardId { get; set; }
+    public string? LibraryCardId { get; set; }
+    public int UserId { get; set; }
 }
